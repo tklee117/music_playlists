@@ -1,97 +1,85 @@
-/**
- * 플레이리스트 백엔드 API 통신 모듈
- */
-
-// 사용자 ID 생성 또는 가져오기
-function getUserId() {
-  let userId = localStorage.getItem('userId');
-  if (!userId) {
-    userId = generateUUID();
-    localStorage.setItem('userId', userId);
+// 고유 기기 ID 얻기
+function getDeviceId() {
+  let deviceId = localStorage.getItem('deviceId');
+  if (!deviceId) {
+    deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('deviceId', deviceId);
   }
-  return userId;
+  return deviceId;
 }
 
-// UUID 생성 함수
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-// API 기본 URL (개발/프로덕션 환경에 따라 다름)
-const API_BASE_URL = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' 
-                    ? `http://${window.location.hostname}:3000/api` 
-                    : `https://your-railway-app-url.up.railway.app/api`;
+// API URL
+const API_URL = process.env.NODE_ENV === 'production' 
+  ? '/api/playlists' 
+  : 'http://localhost:5000/api/playlists';
 
 // 플레이리스트 가져오기
 async function fetchPlaylists() {
   try {
-    const userId = getUserId();
-    const response = await fetch(`${API_BASE_URL}/playlists/${userId}`);
+    const deviceId = getDeviceId();
+    const response = await fetch(`${API_URL}/${deviceId}`);
     
     if (!response.ok) {
-      throw new Error(`서버 오류: ${response.status}`);
+      throw new Error('서버 응답 오류');
     }
     
     return await response.json();
   } catch (error) {
-    console.error('플레이리스트 가져오기 실패:', error);
-    throw error;
+    console.error('플레이리스트 가져오기 오류:', error);
+    // API 호출 실패 시 로컬 스토리지에서 가져오기
+    return fallbackToLocalStorage();
   }
 }
 
 // 플레이리스트 저장하기
 async function savePlaylists(playlists) {
   try {
-    const userId = getUserId();
-    const response = await fetch(`${API_BASE_URL}/playlists`, {
+    const deviceId = getDeviceId();
+    const response = await fetch(`${API_URL}/${deviceId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        playlists,
-        userId
-      })
+      body: JSON.stringify({ playlists })
     });
     
     if (!response.ok) {
-      throw new Error(`서버 오류: ${response.status}`);
+      throw new Error('서버 응답 오류');
     }
     
     return await response.json();
   } catch (error) {
-    console.error('플레이리스트 저장 실패:', error);
-    throw error;
+    console.error('플레이리스트 저장 오류:', error);
+    // API 호출 실패 시 로컬 스토리지에 저장
+    saveToLocalStorage(playlists);
+    return playlists;
   }
 }
 
-// 로컬 스토리지에 플레이리스트 백업
-function backupToLocalStorage(playlists) {
-  try {
-    localStorage.setItem('playlists', JSON.stringify(playlists));
-    console.log('플레이리스트가 로컬 스토리지에 백업되었습니다');
-    return true;
-  } catch (error) {
-    console.error('로컬 스토리지 백업 실패:', error);
-    return false;
+// 로컬 스토리지에서 플레이리스트 가져오기 (폴백)
+function fallbackToLocalStorage() {
+  console.log('로컬 스토리지에서 플레이리스트 복원');
+  const savedPlaylists = localStorage.getItem('musicPlaylists');
+  
+  if (savedPlaylists) {
+    return JSON.parse(savedPlaylists);
+  } else {
+    // 기본 플레이리스트 생성
+    const defaultPlaylists = [{
+      id: 'default',
+      name: '내 첫번째 재생 목록',
+      description: '좋아하는 노래를 추가해보세요!',
+      songs: []
+    }];
+    
+    saveToLocalStorage(defaultPlaylists);
+    return defaultPlaylists;
   }
 }
 
-// 로컬 스토리지에서 플레이리스트 복원
-function restoreFromLocalStorage() {
-  try {
-    const playlistsJson = localStorage.getItem('playlists');
-    if (playlistsJson) {
-      return JSON.parse(playlistsJson);
-    }
-    return null;
-  } catch (error) {
-    console.error('로컬 스토리지 복원 실패:', error);
-    return null;
-  }
-} 
+// 로컬 스토리지에 플레이리스트 저장하기 (백업)
+function saveToLocalStorage(playlists) {
+  localStorage.setItem('musicPlaylists', JSON.stringify(playlists));
+}
+
+export { fetchPlaylists, savePlaylists }; 
