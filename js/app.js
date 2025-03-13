@@ -45,8 +45,6 @@ const deletePlaylistButton = document.getElementById('delete-playlist');
 const deletePlaylistModal = document.getElementById('delete-playlist-modal');
 const deletePlaylistConfirm = document.getElementById('delete-playlist-confirm');
 const deletePlaylistCancel = document.getElementById('delete-playlist-cancel');
-const manualInputToggle = document.getElementById('manual-input-toggle');
-const manualInputContainer = document.getElementById('manual-input-container');
 const songTitleInput = document.getElementById('song-title-input');
 const songArtistInput = document.getElementById('song-artist-input');
 const songLyricsInput = document.getElementById('song-lyrics');
@@ -202,6 +200,16 @@ function playSong(index) {
     }
     
     currentVideoId = song.videoId;
+    
+    // 수동 추가된 노래인 경우 (YouTube URL 없음)
+    if (song.isManual) {
+        // 플레이어 대신 오디오 요소 사용 또는 다른 처리
+        updateNowPlayingUI(song);
+        updateSongsList();
+        savePlaylists();
+        return;
+    }
+    
     player.loadVideoById(currentVideoId);
     
     // UI 업데이트
@@ -322,6 +330,8 @@ function shufflePlaylist() {
 
 // YouTube URL에서 비디오 ID 추출
 function extractVideoId(url) {
+    if (!url) return null;
+    
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
     return (match && match[7].length === 11) ? match[7] : null;
@@ -362,8 +372,10 @@ async function getVideoInfo(videoId) {
 
 // 노래 추가
 async function addSongToPlaylist(url, customThumbnailUrl = null, manualTitle = null, manualArtist = null, lyrics = '') {
-    if (manualTitle && !url) {
-        // 수동 입력 모드 (YouTube URL 없이)
+    const videoId = extractVideoId(url);
+    
+    // 수동 입력 모드 (YouTube URL 없음)
+    if (!videoId && manualTitle) {
         const newSong = {
             title: manualTitle,
             artist: manualArtist || 'Unknown Artist',
@@ -389,17 +401,21 @@ async function addSongToPlaylist(url, customThumbnailUrl = null, manualTitle = n
         return;
     }
     
-    const videoId = extractVideoId(url);
-    
+    // YouTube URL 유효성 검사
     if (!videoId) {
-        alert('유효한 YouTube URL이 아닙니다.');
+        // URL이 없고 제목도 없으면 오류
+        if (!manualTitle) {
+            alert('YouTube URL 또는 노래 제목을 입력해주세요.');
+            return;
+        }
+        // 제목만 있는 경우는 위에서 처리됨
         return;
     }
     
     let videoInfo;
     
+    // 수동 입력 정보가 있는 경우
     if (manualTitle) {
-        // 수동 입력 모드 (YouTube URL 있음)
         videoInfo = {
             title: manualTitle,
             artist: manualArtist || 'Unknown Artist',
@@ -408,7 +424,7 @@ async function addSongToPlaylist(url, customThumbnailUrl = null, manualTitle = n
             lyrics: lyrics || ''
         };
     } else {
-        // 자동 모드
+        // YouTube에서 정보 가져오기
         videoInfo = await getVideoInfo(videoId);
         
         if (!videoInfo) {
@@ -615,37 +631,19 @@ function setupEventListeners() {
     addSongSubmit.addEventListener('click', () => {
         const url = youtubeUrlInput.value.trim();
         const customThumbnail = songCoverInput.value.trim();
-        const isManualInput = manualInputToggle.checked;
         const manualTitle = songTitleInput.value.trim();
         const manualArtist = songArtistInput.value.trim();
         const lyrics = songLyricsInput.value.trim();
         
-        if (isManualInput && manualTitle) {
-            // 수동 입력 모드
-            addSongToPlaylist(url, customThumbnail, manualTitle, manualArtist, lyrics);
-            addSongModal.classList.remove('active');
-            resetAddSongForm();
-        } else if (!isManualInput && url) {
-            // 자동 모드 (YouTube URL)
-            addSongToPlaylist(url, customThumbnail, null, null, lyrics);
-            addSongModal.classList.remove('active');
-            resetAddSongForm();
-        } else {
-            if (isManualInput) {
-                alert('노래 제목을 입력해주세요.');
-            } else {
-                alert('YouTube URL을 입력해주세요.');
-            }
+        // URL이나 제목 중 하나는 있어야 함
+        if (!url && !manualTitle) {
+            alert('YouTube URL 또는 노래 제목을 입력해주세요.');
+            return;
         }
-    });
-    
-    // 수동 입력 토글
-    manualInputToggle.addEventListener('change', () => {
-        if (manualInputToggle.checked) {
-            manualInputContainer.classList.remove('hidden');
-        } else {
-            manualInputContainer.classList.add('hidden');
-        }
+        
+        addSongToPlaylist(url, customThumbnail, manualTitle, manualArtist, lyrics);
+        addSongModal.classList.remove('active');
+        resetAddSongForm();
     });
     
     // 재생 목록 생성 버튼
@@ -725,8 +723,6 @@ function resetAddSongForm() {
     songTitleInput.value = '';
     songArtistInput.value = '';
     songLyricsInput.value = '';
-    manualInputToggle.checked = false;
-    manualInputContainer.classList.add('hidden');
 }
 
 // 초기화

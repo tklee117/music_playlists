@@ -485,8 +485,11 @@ header h1 {
     resize: vertical;
 }
 
-#manual-input-container.hidden {
-    display: none;
+.note {
+    font-size: 0.85rem;
+    color: #666;
+    font-style: italic;
+    margin-top: 5px;
 }
 
 .delete-playlist-actions {
