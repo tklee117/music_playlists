@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>음악 재생 목록</title>
+    <title>My Music World</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -38,7 +38,7 @@
                 <div class="player-content">
                     <div class="now-playing">
                         <div class="album-art">
-                            <img id="song-thumbnail" src="img/default-cover.jpg" alt="앨범 커버">
+                            <img id="song-thumbnail" src="img/cup_of_coffee_love.gif" alt="앨범 커버">
                         </div>
                         <div class="song-info">
                             <h3 id="song-title">선택된 노래 없음</h3>
@@ -94,8 +94,27 @@
                     <input type="text" id="youtube-url" placeholder="https://www.youtube.com/watch?v=...">
                 </div>
                 <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="manual-input-toggle"> 노래 정보 직접 입력
+                    </label>
+                </div>
+                <div id="manual-input-container" class="hidden">
+                    <div class="form-group">
+                        <label for="song-title-input">노래 제목</label>
+                        <input type="text" id="song-title-input" placeholder="노래 제목 입력">
+                    </div>
+                    <div class="form-group">
+                        <label for="song-artist-input">아티스트</label>
+                        <input type="text" id="song-artist-input" placeholder="아티스트 이름 입력">
+                    </div>
+                </div>
+                <div class="form-group">
                     <label for="song-cover">앨범 커버 URL (선택사항)</label>
                     <input type="text" id="song-cover" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label for="song-lyrics">가사 (선택사항)</label>
+                    <textarea id="song-lyrics" placeholder="노래 가사를 입력하세요..." rows="4"></textarea>
                 </div>
                 <button id="add-song-submit" class="btn">추가</button>
             </div>
@@ -114,6 +133,22 @@
                     <input type="text" id="playlist-name" placeholder="내 재생 목록">
                 </div>
                 <button id="create-playlist-submit" class="btn">만들기</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="delete-playlist-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>재생 목록 삭제</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>정말로 이 재생 목록을 삭제하시겠습니까?</p>
+                <div class="delete-playlist-actions">
+                    <button id="delete-playlist-cancel" class="btn btn-secondary">취소</button>
+                    <button id="delete-playlist-confirm" class="btn btn-danger">삭제</button>
+                </div>
             </div>
         </div>
     </div>

@@ -7,6 +7,8 @@ let playlists = [];
 let currentPlaylist = null;
 let currentSongIndex = -1;
 let isPlaying = false;
+let selectedPlaylistIndex = -1;
+let progressUpdateInterval;
 
 // 문서 요소 참조
 const playlistsScreen = document.getElementById('playlists-screen');
@@ -40,10 +42,14 @@ const playlistNameInput = document.getElementById('playlist-name');
 const backToPlaylistsButton = document.getElementById('back-to-playlists');
 const closeModalButtons = document.querySelectorAll('.close-modal');
 const deletePlaylistButton = document.getElementById('delete-playlist');
+const deletePlaylistModal = document.getElementById('delete-playlist-modal');
+const deletePlaylistConfirm = document.getElementById('delete-playlist-confirm');
+const deletePlaylistCancel = document.getElementById('delete-playlist-cancel');
+const manualInputToggle = document.getElementById('manual-input-toggle');
+const manualInputContainer = document.getElementById('manual-input-container');
 const songTitleInput = document.getElementById('song-title-input');
 const songArtistInput = document.getElementById('song-artist-input');
 const songLyricsInput = document.getElementById('song-lyrics');
-let isSelectionMode = false;
 
 // YouTube API 초기화
 function onYouTubeIframeAPIReady() {
@@ -92,12 +98,28 @@ function renderPlaylists() {
     playlists.forEach((playlist, index) => {
         const playlistCard = document.createElement('div');
         playlistCard.className = 'playlist-card';
+        if (index === selectedPlaylistIndex) {
+            playlistCard.classList.add('selected');
+        }
+        
         playlistCard.innerHTML = `
             <h3>${playlist.name}</h3>
             <p>${playlist.description || '재생 목록 설명 없음'}</p>
             <div class="song-count">${playlist.songs.length} 곡</div>
         `;
-        playlistCard.addEventListener('click', () => openPlaylist(index));
+        
+        playlistCard.addEventListener('click', (e) => {
+            if (deletePlaylistButton.classList.contains('active')) {
+                // 재생 목록 삭제 모드일 때
+                selectedPlaylistIndex = index;
+                renderPlaylists();
+                showDeletePlaylistModal();
+            } else {
+                // 일반 모드일 때
+                openPlaylist(index);
+            }
+        });
+        
         playlistsContainer.appendChild(playlistCard);
     });
 }
@@ -234,10 +256,6 @@ function updateProgressBar() {
             
             currentTimeElement.textContent = formatTime(currentTime);
             durationElement.textContent = formatTime(duration);
-            
-            // 툴팁에 남은 시간 표시
-            const remainingTime = duration - currentTime;
-            progressBar.setAttribute('title', `남은 시간: ${formatTime(remainingTime)}`);
         }
     }
 }
@@ -333,7 +351,8 @@ async function getVideoInfo(videoId) {
             title: title,
             artist: artist,
             thumbnail: thumbnail,
-            videoId: videoId
+            videoId: videoId,
+            lyrics: ''
         };
     } catch (error) {
         console.error('비디오 정보를 가져오는 데 실패했습니다:', error);
@@ -342,7 +361,34 @@ async function getVideoInfo(videoId) {
 }
 
 // 노래 추가
-async function addSongToPlaylist(url, customThumbnailUrl = null, customTitle = null, customArtist = null, lyrics = null) {
+async function addSongToPlaylist(url, customThumbnailUrl = null, manualTitle = null, manualArtist = null, lyrics = '') {
+    if (manualTitle && !url) {
+        // 수동 입력 모드 (YouTube URL 없이)
+        const newSong = {
+            title: manualTitle,
+            artist: manualArtist || 'Unknown Artist',
+            thumbnail: customThumbnailUrl || 'img/cup_of_coffee_love.gif',
+            videoId: `manual_${Date.now()}`, // 수동 ID 생성
+            isManual: true,
+            lyrics: lyrics || ''
+        };
+        
+        // 현재 재생 목록에 노래 추가
+        currentPlaylist.songs.push(newSong);
+        
+        // UI 업데이트
+        renderSongs();
+        
+        // 첫 번째 노래가 추가된 경우 자동 재생
+        if (currentPlaylist.songs.length === 1) {
+            playSong(0);
+        }
+        
+        // 재생 목록 저장
+        savePlaylists();
+        return;
+    }
+    
     const videoId = extractVideoId(url);
     
     if (!videoId) {
@@ -352,25 +398,31 @@ async function addSongToPlaylist(url, customThumbnailUrl = null, customTitle = n
     
     let videoInfo;
     
-    try {
-        videoInfo = await getVideoInfo(videoId);
-    } catch (error) {
-        // API 실패 시 사용자 입력 데이터로 객체 생성
+    if (manualTitle) {
+        // 수동 입력 모드 (YouTube URL 있음)
         videoInfo = {
-            title: customTitle || '제목 없음',
-            artist: customArtist || '알 수 없는 아티스트',
+            title: manualTitle,
+            artist: manualArtist || 'Unknown Artist',
             thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-            videoId: videoId
+            videoId: videoId,
+            lyrics: lyrics || ''
         };
+    } else {
+        // 자동 모드
+        videoInfo = await getVideoInfo(videoId);
+        
+        if (!videoInfo) {
+            alert('비디오 정보를 가져오는 데 실패했습니다.');
+            return;
+        }
+        
+        videoInfo.lyrics = lyrics || '';
     }
     
-    // 사용자 입력 데이터가 있으면 덮어쓰기
-    if (customTitle) videoInfo.title = customTitle;
-    if (customArtist) videoInfo.artist = customArtist;
-    if (customThumbnailUrl) videoInfo.thumbnail = customThumbnailUrl;
-    
-    // 가사 추가
-    if (lyrics) videoInfo.lyrics = lyrics;
+    // 사용자 지정 썸네일이 있는 경우 사용
+    if (customThumbnailUrl) {
+        videoInfo.thumbnail = customThumbnailUrl;
+    }
     
     // 현재 재생 목록에 노래 추가
     currentPlaylist.songs.push(videoInfo);
@@ -414,7 +466,7 @@ function deleteSong(index) {
             else {
                 currentSongIndex = -1;
                 player.stopVideo();
-                songThumbnail.src = 'img/default-cover.jpg';
+                songThumbnail.src = 'img/cup_of_coffee_love.gif';
                 songTitle.textContent = '선택된 노래 없음';
                 songArtist.textContent = '아티스트';
             }
@@ -448,6 +500,43 @@ function createNewPlaylist(name) {
     return newPlaylist;
 }
 
+// 재생 목록 삭제
+function deletePlaylist(index) {
+    if (index >= 0 && index < playlists.length) {
+        playlists.splice(index, 1);
+        
+        // 모든 재생 목록이 삭제된 경우 기본 재생 목록 생성
+        if (playlists.length === 0) {
+            playlists = [{
+                id: 'default',
+                name: '내 첫번째 재생 목록',
+                description: '좋아하는 노래를 추가해보세요!',
+                songs: []
+            }];
+        }
+        
+        selectedPlaylistIndex = -1;
+        
+        // UI 업데이트
+        renderPlaylists();
+        
+        // 재생 목록 저장
+        savePlaylists();
+    }
+}
+
+// 재생 목록 삭제 모달 표시
+function showDeletePlaylistModal() {
+    if (selectedPlaylistIndex >= 0 && selectedPlaylistIndex < playlists.length) {
+        deletePlaylistModal.classList.add('active');
+    }
+}
+
+// 재생 목록 삭제 모달 닫기
+function closeDeletePlaylistModal() {
+    deletePlaylistModal.classList.remove('active');
+}
+
 // 로컬 스토리지에 재생 목록 저장
 function savePlaylists() {
     localStorage.setItem('musicPlaylists', JSON.stringify(playlists));
@@ -470,15 +559,14 @@ function loadPlaylists() {
     }
 }
 
-// 가사 가져오기 (임시 구현 - 실제로는 API를 사용해야 함)
+// 가사 가져오기 및 표시
 async function getLyrics(song) {
-    // 사용자가 입력한 가사가 있는 경우
     if (song.lyrics) {
         return song.lyrics;
     }
     
-    // 가사 API 통합을 위한 자리 표시자
-    return `현재 가사 정보를 가져올 수 없습니다.\n\n제목: ${song.title}\n아티스트: ${song.artist}\n\n가사를 추가하려면 노래를 추가할 때 입력하세요.`;
+    // 가사가 없는 경우 기본 메시지 반환
+    return `현재 가사 정보를 가져올 수 없습니다.\n\n제목: ${song.title}\n아티스트: ${song.artist}\n\n노래를 추가할 때 가사를 입력하면 이곳에 표시됩니다.`;
 }
 
 // 이벤트 리스너 설정
@@ -519,6 +607,7 @@ function setupEventListeners() {
     
     // 노래 추가 버튼
     addSongButton.addEventListener('click', () => {
+        resetAddSongForm();
         addSongModal.classList.add('active');
     });
     
@@ -526,20 +615,36 @@ function setupEventListeners() {
     addSongSubmit.addEventListener('click', () => {
         const url = youtubeUrlInput.value.trim();
         const customThumbnail = songCoverInput.value.trim();
-        const customTitle = songTitleInput.value.trim();
-        const customArtist = songArtistInput.value.trim();
+        const isManualInput = manualInputToggle.checked;
+        const manualTitle = songTitleInput.value.trim();
+        const manualArtist = songArtistInput.value.trim();
         const lyrics = songLyricsInput.value.trim();
         
-        if (url) {
-            addSongToPlaylist(url, customThumbnail, customTitle, customArtist, lyrics);
+        if (isManualInput && manualTitle) {
+            // 수동 입력 모드
+            addSongToPlaylist(url, customThumbnail, manualTitle, manualArtist, lyrics);
             addSongModal.classList.remove('active');
-            youtubeUrlInput.value = '';
-            songCoverInput.value = '';
-            songTitleInput.value = '';
-            songArtistInput.value = '';
-            songLyricsInput.value = '';
+            resetAddSongForm();
+        } else if (!isManualInput && url) {
+            // 자동 모드 (YouTube URL)
+            addSongToPlaylist(url, customThumbnail, null, null, lyrics);
+            addSongModal.classList.remove('active');
+            resetAddSongForm();
         } else {
-            alert('YouTube URL을 입력해주세요.');
+            if (isManualInput) {
+                alert('노래 제목을 입력해주세요.');
+            } else {
+                alert('YouTube URL을 입력해주세요.');
+            }
+        }
+    });
+    
+    // 수동 입력 토글
+    manualInputToggle.addEventListener('change', () => {
+        if (manualInputToggle.checked) {
+            manualInputContainer.classList.remove('hidden');
+        } else {
+            manualInputContainer.classList.add('hidden');
         }
     });
     
@@ -561,11 +666,39 @@ function setupEventListeners() {
         }
     });
     
+    // 재생 목록 삭제 버튼
+    deletePlaylistButton.addEventListener('click', () => {
+        deletePlaylistButton.classList.toggle('active');
+        
+        if (deletePlaylistButton.classList.contains('active')) {
+            alert('삭제할 재생 목록을 선택하세요.');
+        } else {
+            selectedPlaylistIndex = -1;
+            renderPlaylists();
+        }
+    });
+    
+    // 재생 목록 삭제 확인 버튼
+    deletePlaylistConfirm.addEventListener('click', () => {
+        deletePlaylist(selectedPlaylistIndex);
+        closeDeletePlaylistModal();
+    });
+    
+    // 재생 목록 삭제 취소 버튼
+    deletePlaylistCancel.addEventListener('click', () => {
+        selectedPlaylistIndex = -1;
+        renderPlaylists();
+        closeDeletePlaylistModal();
+    });
+    
     // 모달 닫기 버튼
     closeModalButtons.forEach(button => {
         button.addEventListener('click', () => {
             addSongModal.classList.remove('active');
             createPlaylistModal.classList.remove('active');
+            deletePlaylistModal.classList.remove('active');
+            selectedPlaylistIndex = -1;
+            renderPlaylists();
         });
     });
     
@@ -583,52 +716,17 @@ function setupEventListeners() {
         const duration = player.getDuration();
         player.seekTo(duration * percent);
     });
-
-    // 재생 목록 삭제 버튼 이벤트 리스너
-    deletePlaylistButton.addEventListener('click', toggleSelectionMode);
 }
 
-// 선택 모드 토글
-function toggleSelectionMode() {
-    isSelectionMode = !isSelectionMode;
-    
-    if (isSelectionMode) {
-        deletePlaylistButton.textContent = '삭제 완료';
-        deletePlaylistButton.classList.add('active');
-        
-        // 각 재생 목록에 체크박스 추가
-        document.querySelectorAll('.playlist-card').forEach(card => {
-            card.classList.add('selectable');
-            
-            // 이미 체크박스가 있는지 확인
-            if (!card.querySelector('.checkbox-container')) {
-                const checkbox = document.createElement('div');
-                checkbox.className = 'checkbox-container';
-                checkbox.innerHTML = '<input type="checkbox" class="playlist-checkbox">';
-                card.appendChild(checkbox);
-            }
-        });
-    } else {
-        // 선택된 재생 목록 삭제
-        const selectedPlaylists = [];
-        document.querySelectorAll('.playlist-checkbox:checked').forEach(checkbox => {
-            const card = checkbox.closest('.playlist-card');
-            const index = Array.from(card.parentNode.children).indexOf(card);
-            selectedPlaylists.push(index);
-        });
-        
-        // 인덱스 역순으로 삭제 (인덱스 변화 방지)
-        selectedPlaylists.sort((a, b) => b - a).forEach(index => {
-            playlists.splice(index, 1);
-        });
-        
-        // UI 업데이트
-        renderPlaylists();
-        savePlaylists();
-        
-        deletePlaylistButton.textContent = '재생 목록 삭제';
-        deletePlaylistButton.classList.remove('active');
-    }
+// 노래 추가 폼 초기화
+function resetAddSongForm() {
+    youtubeUrlInput.value = '';
+    songCoverInput.value = '';
+    songTitleInput.value = '';
+    songArtistInput.value = '';
+    songLyricsInput.value = '';
+    manualInputToggle.checked = false;
+    manualInputContainer.classList.add('hidden');
 }
 
 // 초기화
