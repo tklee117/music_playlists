@@ -10,14 +10,17 @@
 <body>
     <div class="container">
         <header>
-            <h1>나의 음악 세계</h1>
+            <h1>My Music World</h1>
         </header>
         
         <main>
             <div id="playlists-screen" class="screen active">
                 <div class="playlists-header">
                     <h2>내 재생 목록</h2>
-                    <button id="create-playlist" class="btn"><i class="fas fa-plus"></i> 새 재생 목록</button>
+                    <div class="playlist-actions">
+                        <button id="create-playlist" class="btn"><i class="fas fa-plus"></i> 새 재생 목록</button>
+                        <button id="delete-playlist" class="btn btn-danger"><i class="fas fa-trash"></i> 재생 목록 삭제</button>
+                    </div>
                 </div>
                 <div id="playlists-container"></div>
             </div>
