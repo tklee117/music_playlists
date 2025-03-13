@@ -100,7 +100,16 @@ function renderPlaylists() {
             playlistCard.classList.add('selected');
         }
         
+        // 재생 목록의 첫 번째 노래 커버 이미지 가져오기
+        let coverImage = 'img/default-cover.jpg'; // 기본 이미지
+        if (playlist.songs.length > 0) {
+            coverImage = playlist.songs[0].thumbnail;
+        }
+        
         playlistCard.innerHTML = `
+            <div class="playlist-cover">
+                <img src="${coverImage}" alt="${playlist.name}">
+            </div>
             <h3>${playlist.name}</h3>
             <p>${playlist.description || '재생 목록 설명 없음'}</p>
             <div class="song-count">${playlist.songs.length} 곡</div>
@@ -702,6 +711,14 @@ function setupEventListeners() {
     
     // 재생 목록으로 돌아가기 버튼
     backToPlaylistsButton.addEventListener('click', () => {
+        // 노래 재생 중지
+        if (player && player.stopVideo) {
+            player.stopVideo();
+        }
+        isPlaying = false;
+        playPauseButton.innerHTML = '<i class="fas fa-play"></i>';
+        stopProgressBarUpdate();
+        
         playerScreen.classList.remove('active');
         playlistsScreen.classList.add('active');
     });
