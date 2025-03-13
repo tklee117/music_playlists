@@ -26,6 +26,9 @@
     "url": "https://github.com/tklee117/music_playlists/issues"
   },
   "homepage": "https://github.com/tklee117/music_playlists#readme",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",

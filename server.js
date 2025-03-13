@@ -13,7 +13,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 미들웨어 설정
-app.use(cors());
+app.use(cors({
+  origin: ['https://tklee117.github.io', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, './')));
 

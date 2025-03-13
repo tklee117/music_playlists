@@ -25,7 +25,7 @@ function generateUUID() {
 const API_BASE_URL = window.location.hostname === 'localhost' || 
                     window.location.hostname === '127.0.0.1' 
                     ? `http://${window.location.hostname}:3000/api` 
-                    : `${window.location.origin}/api`;
+                    : `https://your-railway-app-url.up.railway.app/api`;
 
 // 플레이리스트 가져오기
 async function fetchPlaylists() {
