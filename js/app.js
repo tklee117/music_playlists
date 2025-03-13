@@ -9,6 +9,7 @@ let currentSongIndex = -1;
 let isPlaying = false;
 let selectedPlaylistIndex = -1;
 let progressUpdateInterval;
+let isLoading = false; // 로딩 상태 추가
 
 // 문서 요소 참조
 const playlistsScreen = document.getElementById('playlists-screen');
@@ -48,6 +49,24 @@ const deletePlaylistCancel = document.getElementById('delete-playlist-cancel');
 const songTitleInput = document.getElementById('song-title-input');
 const songArtistInput = document.getElementById('song-artist-input');
 const songLyricsInput = document.getElementById('song-lyrics');
+
+// 로딩 인디케이터 요소 추가
+const loadingIndicator = document.createElement('div');
+loadingIndicator.className = 'loading-indicator';
+loadingIndicator.innerHTML = '<div class="spinner"></div><p>로딩 중...</p>';
+loadingIndicator.style.display = 'none';
+document.body.appendChild(loadingIndicator);
+
+// 로딩 인디케이터 표시/숨김 함수
+function showLoading() {
+    isLoading = true;
+    loadingIndicator.style.display = 'flex';
+}
+
+function hideLoading() {
+    isLoading = false;
+    loadingIndicator.style.display = 'none';
+}
 
 // YouTube API 초기화
 function onYouTubeIframeAPIReady() {
@@ -562,25 +581,80 @@ function closeDeletePlaylistModal() {
     deletePlaylistModal.classList.remove('active');
 }
 
-// 로컬 스토리지에 재생 목록 저장
-function savePlaylists() {
-    localStorage.setItem('musicPlaylists', JSON.stringify(playlists));
+// 서버에 재생 목록 저장 + 로컬 스토리지 백업
+async function savePlaylists() {
+    showLoading();
+    try {
+        // 서버에 저장 시도
+        await window.savePlaylists(playlists);
+        console.log('플레이리스트가 서버에 저장되었습니다');
+    } catch (error) {
+        console.error('서버 저장 실패:', error);
+        // 실패 시 로컬 스토리지에 백업
+        console.log('로컬 스토리지에 백업 중...');
+    } finally {
+        // 항상 로컬 스토리지에도 백업
+        backupToLocalStorage(playlists);
+        hideLoading();
+    }
 }
 
-// 로컬 스토리지에서 재생 목록 로드
-function loadPlaylists() {
-    const savedPlaylists = localStorage.getItem('musicPlaylists');
-    if (savedPlaylists) {
-        playlists = JSON.parse(savedPlaylists);
-    } else {
-        // 기본 재생 목록 생성
-        playlists = [{
-            id: 'default',
-            name: '내 첫번째 재생 목록',
-            description: '좋아하는 노래를 추가해보세요!',
-            songs: []
-        }];
-        savePlaylists();
+// 서버에서 재생 목록 로드 + 로컬 스토리지 폴백
+async function loadPlaylists() {
+    showLoading();
+    try {
+        // 서버에서 불러오기 시도
+        const serverPlaylists = await window.fetchPlaylists();
+        
+        if (serverPlaylists && serverPlaylists.length > 0) {
+            console.log('서버에서 플레이리스트를 불러왔습니다');
+            playlists = serverPlaylists;
+        } else {
+            // 서버에 데이터가 없으면 로컬 스토리지에서 복원 시도
+            const localPlaylists = restoreFromLocalStorage();
+            
+            if (localPlaylists && localPlaylists.length > 0) {
+                console.log('로컬 스토리지에서 플레이리스트를 복원했습니다');
+                playlists = localPlaylists;
+                // 로컬에서 불러온 데이터를 서버에 저장
+                await window.savePlaylists(playlists);
+            } else {
+                // 로컬에도 없는 경우 기본 재생 목록 생성
+                console.log('기본 재생 목록을 생성합니다');
+                playlists = [{
+                    id: 'default-' + new Date().getTime(),
+                    name: '내 첫번째 재생 목록',
+                    description: '좋아하는 노래를 추가해보세요!',
+                    songs: []
+                }];
+                // 새로 생성한 기본 재생 목록을 서버에 저장
+                await window.savePlaylists(playlists);
+            }
+        }
+    } catch (error) {
+        console.error('서버에서 재생 목록을 불러오는 데 실패했습니다:', error);
+        
+        // 오류 발생 시 로컬 스토리지에서 복원 시도
+        const localPlaylists = restoreFromLocalStorage();
+        
+        if (localPlaylists && localPlaylists.length > 0) {
+            console.log('로컬 스토리지에서 플레이리스트를 복원했습니다');
+            playlists = localPlaylists;
+        } else {
+            // 로컬에도 없는 경우 기본 재생 목록 생성
+            console.log('기본 재생 목록을 생성합니다');
+            playlists = [{
+                id: 'default-' + new Date().getTime(),
+                name: '내 첫번째 재생 목록',
+                description: '좋아하는 노래를 추가해보세요!',
+                songs: []
+            }];
+        }
+        
+        // 항상 로컬 스토리지에 백업
+        backupToLocalStorage(playlists);
+    } finally {
+        hideLoading();
     }
 }
 
