@@ -22,6 +22,20 @@
 6. "셔플" 버튼을 클릭하여 재생 목록의 노래 순서를 무작위로 섞습니다.
 7. 텍스트 아이콘 버튼을 클릭하여 가사를 볼 수 있습니다 (현재는 기본 텍스트 표시).
 
+## 로컬에서 실행하기
+
+이 프로젝트를 로컬에서 실행하려면:
+
+1. 저장소를 클론합니다: `git clone https://github.com/tklee117/music_playlists.git`
+2. 프로젝트 디렉토리로 이동합니다: `cd music_playlists`
+3. Node.js가 설치되어 있다면 다음 명령어로 로컬 서버를 실행할 수 있습니다:
+   ```
+   node server.js
+   ```
+4. 브라우저에서 `http://localhost:3000`으로 접속합니다.
+
+Node.js가 설치되어 있지 않다면, 간단히 `index.html` 파일을 브라우저에서 직접 열어도 됩니다.
+
 ## 기술 스택
 
 - HTML5
@@ -29,6 +43,7 @@
 - JavaScript (ES6+)
 - YouTube IFrame API
 - 로컬 스토리지 API
+- Node.js (로컬 서버용, 선택 사항)
 
 ## GitHub Pages 배포 방법
 
@@ -36,7 +51,7 @@
 
 1. GitHub 저장소를 생성합니다.
 2. 모든 프로젝트 파일을 저장소에 푸시합니다.
-3. 저장소 설정으로 이동하여 GitHub Pages 섹션에서 배포 소스를 선택합니다 (예: main 브랜치).
+3. 저장소 설정으로 이동하여 GitHub Pages 섹션에서 배포 소스를 선택합니다 (예: main 브랜치 또는 no-backend-version 브랜치).
 4. "Save" 버튼을 클릭합니다.
 5. GitHub Pages 링크가 생성될 때까지 기다립니다.
 
