@@ -585,16 +585,12 @@ function closeDeletePlaylistModal() {
 async function savePlaylists() {
     showLoading();
     try {
-        // 서버에 저장 시도
-        await window.savePlaylists(playlists);
-        console.log('플레이리스트가 서버에 저장되었습니다');
-    } catch (error) {
-        console.error('서버 저장 실패:', error);
-        // 실패 시 로컬 스토리지에 백업
-        console.log('로컬 스토리지에 백업 중...');
-    } finally {
-        // 항상 로컬 스토리지에도 백업
+        // 로컬 스토리지에 저장
         backupToLocalStorage(playlists);
+        console.log('플레이리스트가 로컬 스토리지에 저장되었습니다');
+    } catch (error) {
+        console.error('저장 실패:', error);
+    } finally {
         hideLoading();
     }
 }
@@ -603,45 +599,14 @@ async function savePlaylists() {
 async function loadPlaylists() {
     showLoading();
     try {
-        // 서버에서 불러오기 시도
-        const serverPlaylists = await window.fetchPlaylists();
-        
-        if (serverPlaylists && serverPlaylists.length > 0) {
-            console.log('서버에서 플레이리스트를 불러왔습니다');
-            playlists = serverPlaylists;
-        } else {
-            // 서버에 데이터가 없으면 로컬 스토리지에서 복원 시도
-            const localPlaylists = restoreFromLocalStorage();
-            
-            if (localPlaylists && localPlaylists.length > 0) {
-                console.log('로컬 스토리지에서 플레이리스트를 복원했습니다');
-                playlists = localPlaylists;
-                // 로컬에서 불러온 데이터를 서버에 저장
-                await window.savePlaylists(playlists);
-            } else {
-                // 로컬에도 없는 경우 기본 재생 목록 생성
-                console.log('기본 재생 목록을 생성합니다');
-                playlists = [{
-                    id: 'default-' + new Date().getTime(),
-                    name: '내 첫번째 재생 목록',
-                    description: '좋아하는 노래를 추가해보세요!',
-                    songs: []
-                }];
-                // 새로 생성한 기본 재생 목록을 서버에 저장
-                await window.savePlaylists(playlists);
-            }
-        }
-    } catch (error) {
-        console.error('서버에서 재생 목록을 불러오는 데 실패했습니다:', error);
-        
-        // 오류 발생 시 로컬 스토리지에서 복원 시도
+        // 로컬 스토리지에서 불러오기
         const localPlaylists = restoreFromLocalStorage();
         
         if (localPlaylists && localPlaylists.length > 0) {
-            console.log('로컬 스토리지에서 플레이리스트를 복원했습니다');
+            console.log('로컬 스토리지에서 플레이리스트를 불러왔습니다');
             playlists = localPlaylists;
         } else {
-            // 로컬에도 없는 경우 기본 재생 목록 생성
+            // 로컬에 없는 경우 기본 재생 목록 생성
             console.log('기본 재생 목록을 생성합니다');
             playlists = [{
                 id: 'default-' + new Date().getTime(),
@@ -649,12 +614,47 @@ async function loadPlaylists() {
                 description: '좋아하는 노래를 추가해보세요!',
                 songs: []
             }];
+            // 새로 생성한 기본 재생 목록을 로컬 스토리지에 저장
+            backupToLocalStorage(playlists);
         }
+    } catch (error) {
+        console.error('플레이리스트를 불러오는 데 실패했습니다:', error);
         
-        // 항상 로컬 스토리지에 백업
+        // 오류 발생 시 기본 재생 목록 생성
+        console.log('기본 재생 목록을 생성합니다');
+        playlists = [{
+            id: 'default-' + new Date().getTime(),
+            name: '내 첫번째 재생 목록',
+            description: '좋아하는 노래를 추가해보세요!',
+            songs: []
+        }];
+        
+        // 로컬 스토리지에 백업
         backupToLocalStorage(playlists);
     } finally {
         hideLoading();
+    }
+}
+
+// 로컬 스토리지에 백업
+function backupToLocalStorage(data) {
+    try {
+        localStorage.setItem('music-playlists', JSON.stringify(data));
+        return true;
+    } catch (error) {
+        console.error('로컬 스토리지 저장 실패:', error);
+        return false;
+    }
+}
+
+// 로컬 스토리지에서 복원
+function restoreFromLocalStorage() {
+    try {
+        const data = localStorage.getItem('music-playlists');
+        return data ? JSON.parse(data) : null;
+    } catch (error) {
+        console.error('로컬 스토리지 복원 실패:', error);
+        return null;
     }
 }
 
