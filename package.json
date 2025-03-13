@@ -1,0 +1,28 @@
+{
+  "name": "music-playlist-player",
+  "version": "1.0.0",
+  "description": "로컬 스토리지 기반 음악 재생 목록 플레이어",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tklee117/music_playlists.git"
+  },
+  "keywords": [
+    "music",
+    "playlist",
+    "player",
+    "youtube",
+    "html",
+    "css",
+    "javascript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tklee117/music_playlists/issues"
+  },
+  "homepage": "https://github.com/tklee117/music_playlists#readme"
+} 
