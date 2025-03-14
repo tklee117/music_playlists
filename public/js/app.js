@@ -381,173 +381,216 @@ async function getVideoInfo(videoId) {
 
 // 노래 추가
 async function addSongToPlaylist(url, customThumbnailUrl = null, manualTitle = null, manualArtist = null, lyrics = '') {
-    const videoId = extractVideoId(url);
+    if (!currentPlaylist) return;
     
-    // 수동 입력 모드 (YouTube URL 없음)
-    if (!videoId && manualTitle) {
+    // 로딩 인디케이터 표시
+    document.getElementById('loading-indicator').style.display = 'flex';
+    
+    try {
+        const videoId = extractVideoId(url);
+        
+        if (!videoId) {
+            alert('유효한 YouTube URL을 입력해주세요.');
+            document.getElementById('loading-indicator').style.display = 'none';
+            return;
+        }
+        
+        let videoInfo = { title: '', thumbnails: { default: { url: '' } } };
+        
+        if (!manualTitle) {
+            videoInfo = await getVideoInfo(videoId);
+        }
+        
+        const songId = 's_' + Date.now() + Math.random().toString(36).substring(2, 10);
+        
         const newSong = {
-            title: manualTitle,
-            artist: manualArtist || 'Unknown Artist',
-            thumbnail: customThumbnailUrl || 'img/cup_of_coffee_love.gif',
-            videoId: `manual_${Date.now()}`, // 수동 ID 생성
-            isManual: true,
-            lyrics: lyrics || ''
+            id: songId,
+            playlist_id: currentPlaylist.id,
+            title: manualTitle || videoInfo.title || 'Unknown Title',
+            artist: manualArtist || '',
+            youtube_id: videoId,
+            cover_url: customThumbnailUrl || (videoInfo.thumbnails ? videoInfo.thumbnails.default.url : ''),
+            lyrics: lyrics || '',
+            order_index: currentPlaylist.songs ? currentPlaylist.songs.length : 0
         };
         
-        // 현재 재생 목록에 노래 추가
-        currentPlaylist.songs.push(newSong);
+        // API를 통해 노래 추가 시도
+        const addedSong = await addApiSong(newSong);
         
-        // UI 업데이트
+        if (addedSong) {
+            // songs 배열이 없으면 초기화
+            if (!currentPlaylist.songs) {
+                currentPlaylist.songs = [];
+            }
+            
+            // 노래 추가
+            currentPlaylist.songs.push(newSong);
+        } else {
+            // API 호출이 실패하면 로컬에서만 추가
+            // songs 배열이 없으면 초기화
+            if (!currentPlaylist.songs) {
+                currentPlaylist.songs = [];
+            }
+            
+            // 노래 추가
+            currentPlaylist.songs.push(newSong);
+            await savePlaylists();
+        }
+        
+        updateSongsList();
         renderSongs();
         
-        // 첫 번째 노래가 추가된 경우 자동 재생
+        // 노래가 없었다면 첫 번째 노래 자동 재생
         if (currentPlaylist.songs.length === 1) {
             playSong(0);
         }
         
-        // 재생 목록 저장
-        savePlaylists();
-        return;
+        resetAddSongForm();
+        addSongModal.style.display = 'none';
+    } catch (error) {
+        console.error('노래 추가 중 오류:', error);
+        alert('노래를 추가하는 데 문제가 발생했습니다.');
     }
     
-    // YouTube URL 유효성 검사
-    if (!videoId) {
-        // URL이 없고 제목도 없으면 오류
-        if (!manualTitle) {
-            alert('YouTube URL 또는 노래 제목을 입력해주세요.');
-            return;
-        }
-        // 제목만 있는 경우는 위에서 처리됨
-        return;
-    }
-    
-    let videoInfo;
-    
-    // 수동 입력 정보가 있는 경우
-    if (manualTitle) {
-        videoInfo = {
-            title: manualTitle,
-            artist: manualArtist || 'Unknown Artist',
-            thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-            videoId: videoId,
-            lyrics: lyrics || ''
-        };
-    } else {
-        // YouTube에서 정보 가져오기
-        videoInfo = await getVideoInfo(videoId);
-        
-        if (!videoInfo) {
-            alert('비디오 정보를 가져오는 데 실패했습니다.');
-            return;
-        }
-        
-        videoInfo.lyrics = lyrics || '';
-    }
-    
-    // 사용자 지정 썸네일이 있는 경우 사용
-    if (customThumbnailUrl) {
-        videoInfo.thumbnail = customThumbnailUrl;
-    }
-    
-    // 현재 재생 목록에 노래 추가
-    currentPlaylist.songs.push(videoInfo);
-    
-    // UI 업데이트
-    renderSongs();
-    
-    // 첫 번째 노래가 추가된 경우 자동 재생
-    if (currentPlaylist.songs.length === 1) {
-        playSong(0);
-    }
-    
-    // 재생 목록 저장
-    savePlaylists();
+    // 로딩 인디케이터 숨기기
+    document.getElementById('loading-indicator').style.display = 'none';
 }
 
 // 노래 삭제
-function deleteSong(index) {
-    if (confirm('이 노래를 삭제하시겠습니까?')) {
-        // 현재 재생 중인 노래를 삭제하는 경우
-        const isCurrentSong = index === currentSongIndex;
+async function deleteSong(index) {
+    if (!currentPlaylist || !currentPlaylist.songs || index >= currentPlaylist.songs.length) return;
+    
+    // 로딩 인디케이터 표시
+    document.getElementById('loading-indicator').style.display = 'flex';
+    
+    try {
+        const songId = currentPlaylist.songs[index].id;
         
-        // 노래 삭제
-        currentPlaylist.songs.splice(index, 1);
+        // API를 통해 노래 삭제 시도
+        const success = await deleteApiSong(songId);
         
-        // 현재 재생 중인 노래보다 앞의 노래를 삭제하는 경우 인덱스 조정
-        if (index < currentSongIndex) {
-            currentSongIndex--;
-        } 
-        // 현재 재생 중인 노래를 삭제하는 경우
-        else if (isCurrentSong) {
-            // 노래가 남아있는 경우 다음 노래 재생
-            if (currentPlaylist.songs.length > 0) {
-                // 삭제된 노래가 마지막 노래였다면 첫 번째 노래로 이동
-                if (currentSongIndex >= currentPlaylist.songs.length) {
-                    currentSongIndex = 0;
-                }
-                playSong(currentSongIndex);
-            } 
-            // 남은 노래가 없는 경우
-            else {
-                currentSongIndex = -1;
+        // 현재 재생 중인 노래를 삭제할 경우
+        if (currentSongIndex === index) {
+            if (isPlaying) {
                 player.stopVideo();
-                songThumbnail.src = 'img/cup_of_coffee_love.gif';
-                songTitle.textContent = '선택된 노래 없음';
-                songArtist.textContent = '아티스트';
             }
+            
+            isPlaying = false;
+            currentSongIndex = -1;
+            
+            // UI 업데이트
+            songThumbnail.src = '';
+            songTitle.textContent = '';
+            songArtist.textContent = '';
+            playPauseButton.innerHTML = '<i class="fas fa-play"></i>';
+            currentTimeElement.textContent = '0:00';
+            durationElement.textContent = '0:00';
+            progressBar.style.width = '0%';
+        } else if (currentSongIndex > index) {
+            // 현재 재생 중인 노래보다 앞에 있는 노래를 삭제할 경우
+            currentSongIndex--;
         }
         
-        // UI 업데이트
-        renderSongs();
+        // 노래 삭제 및 UI 업데이트
+        currentPlaylist.songs.splice(index, 1);
         
-        // 재생 목록 저장
-        savePlaylists();
+        if (success) {
+            // 삭제 성공 시 UI만 업데이트
+            updateSongsList();
+            renderSongs();
+        } else {
+            // API 호출이 실패하면 로컬에서 삭제하고 저장
+            updateSongsList();
+            renderSongs();
+            await savePlaylists();
+        }
+    } catch (error) {
+        console.error('노래 삭제 중 오류:', error);
+        alert('노래를 삭제하는 데 문제가 발생했습니다.');
     }
+    
+    // 로딩 인디케이터 숨기기
+    document.getElementById('loading-indicator').style.display = 'none';
 }
 
 // 재생 목록 생성
-function createNewPlaylist(name) {
-    const newPlaylist = {
-        id: Date.now().toString(),
-        name: name,
-        description: '',
-        songs: []
-    };
+async function createNewPlaylist(name) {
+    // 로딩 인디케이터 표시
+    document.getElementById('loading-indicator').style.display = 'flex';
     
-    playlists.push(newPlaylist);
+    try {
+        const newPlaylist = await createApiPlaylist(name);
+        
+        if (newPlaylist) {
+            playlists.push(newPlaylist);
+            renderPlaylists();
+        } else {
+            // API 호출이 실패하면 로컬에서만 생성
+            const playlistId = 'pl_' + Date.now() + Math.random().toString(36).substring(2, 10);
+            
+            playlists.push({
+                id: playlistId,
+                name: name,
+                songs: []
+            });
+            
+            renderPlaylists();
+            await savePlaylists();
+        }
+    } catch (error) {
+        console.error('재생 목록 생성 중 오류:', error);
+        alert('재생 목록을 생성하는 데 문제가 발생했습니다.');
+    }
     
-    // UI 업데이트
-    renderPlaylists();
-    
-    // 재생 목록 저장
-    savePlaylists();
-    
-    return newPlaylist;
+    // 로딩 인디케이터 숨기기
+    document.getElementById('loading-indicator').style.display = 'none';
 }
 
 // 재생 목록 삭제
-function deletePlaylist(index) {
-    if (index >= 0 && index < playlists.length) {
-        playlists.splice(index, 1);
+async function deletePlaylist(index) {
+    // 로딩 인디케이터 표시
+    document.getElementById('loading-indicator').style.display = 'flex';
+    
+    try {
+        const playlistId = playlists[index].id;
         
-        // 모든 재생 목록이 삭제된 경우 기본 재생 목록 생성
-        if (playlists.length === 0) {
-            playlists = [{
-                id: 'default',
-                name: '내 첫번째 재생 목록',
-                description: '좋아하는 노래를 추가해보세요!',
-                songs: []
-            }];
+        // API를 통해 삭제 시도
+        const success = await deleteApiPlaylist(playlistId);
+        
+        if (success) {
+            playlists.splice(index, 1);
+            
+            if (playlists.length === 0) {
+                // 모든 재생 목록이 삭제된 경우 기본 재생 목록 생성
+                await createNewPlaylist('내 첫 재생 목록');
+            }
+            
+            renderPlaylists();
+        } else {
+            // API 호출이 실패하면 로컬에서만 삭제
+            playlists.splice(index, 1);
+            
+            if (playlists.length === 0) {
+                // 모든 재생 목록이 삭제된 경우 기본 재생 목록 생성
+                const playlistId = 'pl_' + Date.now() + Math.random().toString(36).substring(2, 10);
+                
+                playlists.push({
+                    id: playlistId,
+                    name: '내 첫 재생 목록',
+                    songs: []
+                });
+            }
+            
+            renderPlaylists();
+            await savePlaylists();
         }
-        
-        selectedPlaylistIndex = -1;
-        
-        // UI 업데이트
-        renderPlaylists();
-        
-        // 재생 목록 저장
-        savePlaylists();
+    } catch (error) {
+        console.error('재생 목록 삭제 중 오류:', error);
+        alert('재생 목록을 삭제하는 데 문제가 발생했습니다.');
     }
+    
+    // 로딩 인디케이터 숨기기
+    document.getElementById('loading-indicator').style.display = 'none';
 }
 
 // 재생 목록 삭제 모달 표시
@@ -562,64 +605,81 @@ function closeDeletePlaylistModal() {
     deletePlaylistModal.classList.remove('active');
 }
 
-// 애플리케이션 초기화
-async function initialize() {
-    try {
-        // Firebase 초기화
-        await initializeFirebase();
-        
-        // 재생 목록 로드
-        const loadedPlaylists = await loadPlaylists();
-        
-        if (loadedPlaylists && loadedPlaylists.length > 0) {
-            playlists = loadedPlaylists;
-        } else {
-            // 기본 재생 목록 생성
-            playlists = [
-                {
-                    name: "기본 재생 목록",
-                    songs: []
-                }
-            ];
-            // 새로 생성한 기본 재생 목록 저장
-            savePlaylists();
-        }
-        
-        // UI 렌더링
-        renderPlaylists();
-        setupEventListeners();
-    } catch (error) {
-        console.error("초기화 중 오류 발생:", error);
-        alert("애플리케이션을 초기화하는 중 오류가 발생했습니다. 다시 시도해 주세요.");
-    }
-}
-
-// 재생 목록 저장
+// 로컬 스토리지에 재생 목록 저장
 async function savePlaylists() {
-    // Firebase의 savePlaylists 함수 호출
-    const success = await window.savePlaylists(playlists);
-    
-    if (!success) {
-        console.warn("Firebase에 저장하지 못했습니다. 로컬 스토리지에만 저장됩니다.");
+    try {
+        // 로딩 인디케이터 표시
+        document.getElementById('loading-indicator').style.display = 'flex';
+        
+        // 로컬 스토리지에 백업
+        backupToLocalStorage(playlists);
+        
+        // 로딩 인디케이터 숨기기
+        document.getElementById('loading-indicator').style.display = 'none';
+    } catch (error) {
+        console.error('재생 목록 저장 중 오류:', error);
+        
+        // 로딩 인디케이터 숨기기
+        document.getElementById('loading-indicator').style.display = 'none';
     }
 }
 
-// 재생 목록 로드
+// 로컬 스토리지에서 재생 목록 로드
 async function loadPlaylists() {
-    // Firebase의 loadPlaylists 함수 호출
-    const loadedPlaylists = await window.loadPlaylists();
-    
-    if (loadedPlaylists) {
-        return loadedPlaylists;
-    } else {
-        // 로컬 스토리지에서 로드
-        const savedPlaylists = localStorage.getItem('playlists');
-        if (savedPlaylists) {
-            return JSON.parse(savedPlaylists);
+    try {
+        // 로딩 인디케이터 표시
+        document.getElementById('loading-indicator').style.display = 'flex';
+        
+        // API에서 재생 목록 가져오기 시도
+        const apiPlaylists = await fetchPlaylists();
+        
+        if (apiPlaylists && apiPlaylists.length > 0) {
+            playlists = apiPlaylists;
+            console.log('서버에서 재생 목록을 성공적으로 불러왔습니다.');
+        } else {
+            // API 호출이 실패하면 로컬 스토리지에서 복원 시도
+            const localPlaylists = restoreFromLocalStorage();
+            
+            if (localPlaylists && localPlaylists.length > 0) {
+                playlists = localPlaylists;
+                console.log('로컬 스토리지에서 재생 목록을 복원했습니다.');
+            } else {
+                // 로컬 스토리지에도 없으면 기본 재생 목록 생성
+                console.log('기본 재생 목록을 생성합니다.');
+                const defaultPlaylist = await createApiPlaylist('내 첫 재생 목록');
+                
+                if (defaultPlaylist) {
+                    playlists = [defaultPlaylist];
+                } else {
+                    // API 호출도 실패하면 메모리에 기본 재생 목록 생성
+                    playlists = [{
+                        id: 'pl_default',
+                        name: '내 첫 재생 목록',
+                        songs: []
+                    }];
+                }
+            }
         }
+        
+        // 변경된 플레이리스트를 다시 렌더링
+        renderPlaylists();
+        
+        // 로딩 인디케이터 숨기기
+        document.getElementById('loading-indicator').style.display = 'none';
+    } catch (error) {
+        console.error('재생 목록 로드 중 오류:', error);
+        
+        // 오류 발생 시 로컬 스토리지에서 복원 시도
+        const localPlaylists = restoreFromLocalStorage();
+        
+        if (localPlaylists) {
+            playlists = localPlaylists;
+            console.log('오류 발생 후 로컬 스토리지에서 재생 목록을 복원했습니다.');
+        }
+        
+        // 로딩 인디케이터 숨기기
+        document.getElementById('loading-indicator').style.display = 'none';
     }
-    
-    return null;
 }
 
 // 가사 가져오기 및 표시
@@ -780,13 +840,19 @@ function resetAddSongForm() {
     songLyricsInput.value = '';
 }
 
-// 페이지 로드 시 애플리케이션 초기화
-document.addEventListener('DOMContentLoaded', initialize);
-
-// YouTube IFrame API 로드
-if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-} 
+// 초기화
+document.addEventListener('DOMContentLoaded', () => {
+    loadPlaylists();
+    renderPlaylists();
+    setupEventListeners();
+    
+    // YouTube API 스크립트 로드
+    if (typeof YT === 'undefined') {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    } else {
+        onYouTubeIframeAPIReady();
+    }
+}); 
