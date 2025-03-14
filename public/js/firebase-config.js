@@ -1,13 +1,13 @@
 // Firebase 구성
 // 실제 프로젝트에서는 이 값을 Firebase 콘솔에서 제공하는 값으로 변경해야 합니다
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  apiKey: "AIzaSyBSCfI83RlqRKFs1cM9U3C2nL9FOUrGYLE",
+  authDomain: "music-playlist-31e4f.firebaseapp.com",
+  projectId: "music-playlist-31e4f",
+  storageBucket: "music-playlist-31e4f.firebasestorage.app",
+  messagingSenderId: "569116491352",
+  appId: "1:569116491352:web:66ec9f57c9c69751d0142d",
+  measurementId: "G-NQELKE0X1N"
 };
 
 // Firebase 초기화
