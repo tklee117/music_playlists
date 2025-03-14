@@ -566,12 +566,16 @@ function closeDeletePlaylistModal() {
 async function savePlaylists() {
     showLoadingIndicator();
     try {
+        console.log('재생 목록 저장 시작:', playlists);
+        
         // Supabase에 재생 목록 저장
         const result = await savePlaylistsToSupabase(playlists);
         if (!result) {
             console.warn('Supabase 저장 실패, 로컬 스토리지에만 저장됩니다.');
             // 로컬 스토리지에 백업
             localStorage.setItem('playlists', JSON.stringify(playlists));
+        } else {
+            console.log('Supabase 저장 성공 및 로컬 스토리지 백업 완료');
         }
     } catch (error) {
         console.error('재생 목록 저장 중 오류 발생:', error);
@@ -586,19 +590,25 @@ async function savePlaylists() {
 async function loadPlaylists() {
     showLoadingIndicator();
     try {
+        console.log('재생 목록 로드 시작');
+        
         // Supabase에서 재생 목록 가져오기
         const loadedPlaylists = await fetchPlaylistsFromSupabase();
         if (loadedPlaylists && loadedPlaylists.length > 0) {
+            console.log('Supabase에서 재생 목록 로드 성공:', loadedPlaylists);
             playlists = loadedPlaylists;
             return;
         }
         
         // Supabase에서 가져오기 실패 시 로컬 스토리지에서 복원
+        console.log('Supabase에서 재생 목록 로드 실패, 로컬 스토리지에서 복원 시도');
         const storedPlaylists = localStorage.getItem('playlists');
         if (storedPlaylists) {
             playlists = JSON.parse(storedPlaylists);
+            console.log('로컬 스토리지에서 재생 목록 복원 성공:', playlists);
         } else {
             // 기본 재생 목록 생성
+            console.log('로컬 스토리지에 재생 목록이 없어 기본 재생 목록 생성');
             playlists = [
                 {
                     id: 'default',
@@ -786,11 +796,15 @@ function resetAddSongForm() {
 async function initialize() {
     try {
         showLoadingIndicator();
+        console.log('애플리케이션 초기화 시작');
+        
         // Supabase 초기화
-        await initializeSupabase();
+        const initResult = await initializeSupabase();
+        console.log('Supabase 초기화 결과:', initResult);
         
         // 재생 목록 로드
         const loadedPlaylists = await fetchPlaylistsFromSupabase();
+        console.log('초기화 시 로드된 재생 목록:', loadedPlaylists);
         playlists = loadedPlaylists;
         
         renderPlaylists();
@@ -803,6 +817,8 @@ async function initialize() {
             const firstScriptTag = document.getElementsByTagName('script')[0];
             firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
         }
+        
+        console.log('애플리케이션 초기화 완료');
     } catch (error) {
         console.error('초기화 중 오류 발생:', error);
         alert('애플리케이션 초기화 중 오류가 발생했습니다. 페이지를 새로고침해 주세요.');

@@ -1,7 +1,7 @@
 // Supabase 클라이언트 초기화
 const supabaseUrl = 'https://ksxjolldqertcfufwgit.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzeGpvbGxkcWVydGNmdWZ3Z2l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5MTA5NjAsImV4cCI6MjA1NzQ4Njk2MH0.r7wARyMGu3VD7Zz9iYfqEfBQbbGtQDkJwospfaaYiCc';
-const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 // 로컬 스토리지에 사용자 ID 저장 (인증 없는 사용자 구분용)
 let userId = localStorage.getItem('music_user_id');
@@ -23,18 +23,24 @@ function generateUUID() {
 async function initializeSupabase() {
     try {
         console.log('Supabase 초기화 중...');
+        console.log('사용자 ID:', userId);
+        
         // 테이블이 존재하는지 확인
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('playlists')
             .select('id')
             .limit(1);
             
-        if (error && error.code === '42P01') {
-            console.error('테이블이 존재하지 않습니다. 새 테이블을 생성해주세요.');
-            // 로컬 스토리지에서 재생 목록 복원
+        if (error) {
+            console.error('Supabase 테이블 확인 오류:', error);
+            if (error.code === '42P01') {
+                console.error('테이블이 존재하지 않습니다. 새 테이블을 생성해주세요.');
+                // 로컬 스토리지에서 재생 목록 복원
+                return false;
+            }
             return false;
         } else {
-            console.log('Supabase 초기화 완료');
+            console.log('Supabase 초기화 완료, 테이블 확인 성공');
             return true;
         }
     } catch (error) {
@@ -52,7 +58,9 @@ function getUserId() {
 async function fetchPlaylistsFromSupabase() {
     showLoadingIndicator();
     try {
-        const { data, error } = await supabase
+        console.log('Supabase에서 재생 목록 가져오기 시도. 사용자 ID:', userId);
+        
+        const { data, error } = await supabaseClient
             .from('playlists')
             .select('*')
             .eq('user_id', userId);
@@ -65,9 +73,12 @@ async function fetchPlaylistsFromSupabase() {
             return restorePlaylistsFromLocalStorage();
         }
         
+        console.log('Supabase에서 가져온 데이터:', data);
+        
         if (data && data.length > 0) {
             return data;
         } else {
+            console.log('데이터가 없어 기본 재생 목록 생성');
             // 데이터가 없으면 기본 재생 목록 생성
             const defaultPlaylists = [
                 {
@@ -92,8 +103,10 @@ async function fetchPlaylistsFromSupabase() {
 async function savePlaylistsToSupabase(playlists) {
     showLoadingIndicator();
     try {
+        console.log('Supabase에 재생 목록 저장 시작. 사용자 ID:', userId);
+        
         // 기존 재생 목록 삭제
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = await supabaseClient
             .from('playlists')
             .delete()
             .eq('user_id', userId);
@@ -110,14 +123,19 @@ async function savePlaylistsToSupabase(playlists) {
             updated_at: new Date().toISOString()
         }));
         
-        const { error: insertError } = await supabase
+        console.log('저장할 데이터:', playlistsWithUserId);
+        
+        const { data, error: insertError } = await supabaseClient
             .from('playlists')
-            .insert(playlistsWithUserId);
+            .insert(playlistsWithUserId)
+            .select();
             
         if (insertError) {
             console.error('재생 목록 저장 오류:', insertError);
             throw insertError;
         }
+        
+        console.log('Supabase 저장 성공:', data);
         
         // 로컬 스토리지에도 백업
         backupToLocalStorage(playlists);
