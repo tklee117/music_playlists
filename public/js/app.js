@@ -10,11 +10,6 @@ let isPlaying = false;
 let selectedPlaylistIndex = -1;
 let progressUpdateInterval;
 
-// API URL 설정
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:3000/api' 
-    : '/api';
-
 // 문서 요소 참조
 const playlistsScreen = document.getElementById('playlists-screen');
 const playerScreen = document.getElementById('player-screen');
@@ -567,109 +562,25 @@ function closeDeletePlaylistModal() {
     deletePlaylistModal.classList.remove('active');
 }
 
-// 재생 목록 저장
-async function savePlaylists() {
-    try {
-        // 로딩 표시
-        document.getElementById('loading-indicator').classList.remove('hidden');
-        
-        // API로 플레이리스트 저장
-        const response = await fetch(`${API_URL}/playlists`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(playlists)
-        });
-        
-        if (!response.ok) {
-            throw new Error('플레이리스트 저장에 실패했습니다.');
-        }
-        
-        // 백업으로 로컬 스토리지에도 저장
-        localStorage.setItem('playlists', JSON.stringify(playlists));
-        
-        console.log('플레이리스트가 성공적으로 저장되었습니다.');
-    } catch (error) {
-        console.error('플레이리스트 저장 오류:', error);
-        
-        // 오류 발생 시 로컬 스토리지에 백업
-        localStorage.setItem('playlists', JSON.stringify(playlists));
-        
-        alert('서버에 플레이리스트를 저장하는 데 실패했습니다. 로컬에 백업되었습니다.');
-    } finally {
-        // 로딩 표시 숨기기
-        document.getElementById('loading-indicator').classList.add('hidden');
-    }
+// 로컬 스토리지에 재생 목록 저장
+function savePlaylists() {
+    localStorage.setItem('musicPlaylists', JSON.stringify(playlists));
 }
 
-// 재생 목록 불러오기
-async function loadPlaylists() {
-    try {
-        // 로딩 표시
-        document.getElementById('loading-indicator').classList.remove('hidden');
-        
-        // API에서 플레이리스트 가져오기
-        const response = await fetch(`${API_URL}/playlists`);
-        
-        if (!response.ok) {
-            throw new Error('플레이리스트를 불러오는 데 실패했습니다.');
-        }
-        
-        const data = await response.json();
-        
-        if (Array.isArray(data) && data.length > 0) {
-            playlists = data;
-            console.log('서버에서 플레이리스트를 불러왔습니다.');
-            return;
-        }
-        
-        // API에서 데이터를 가져오지 못한 경우 로컬 스토리지에서 복원 시도
-        const localData = localStorage.getItem('playlists');
-        if (localData) {
-            playlists = JSON.parse(localData);
-            console.log('로컬 스토리지에서 플레이리스트를 복원했습니다.');
-            
-            // 로컬 데이터를 서버에 저장 시도
-            await savePlaylists();
-            return;
-        }
-        
-        // 로컬 스토리지에도 없는 경우 기본 재생 목록 생성
+// 로컬 스토리지에서 재생 목록 로드
+function loadPlaylists() {
+    const savedPlaylists = localStorage.getItem('musicPlaylists');
+    if (savedPlaylists) {
+        playlists = JSON.parse(savedPlaylists);
+    } else {
+        // 기본 재생 목록 생성
         playlists = [{
             id: 'default',
             name: '내 첫번째 재생 목록',
             description: '좋아하는 노래를 추가해보세요!',
             songs: []
         }];
-        
-        console.log('기본 재생 목록을 생성했습니다.');
-        
-        // 기본 재생 목록 저장
-        await savePlaylists();
-    } catch (error) {
-        console.error('플레이리스트 로드 오류:', error);
-        
-        // 오류 발생 시 로컬 스토리지에서 복원 시도
-        const localData = localStorage.getItem('playlists');
-        if (localData) {
-            playlists = JSON.parse(localData);
-            console.log('로컬 스토리지에서 플레이리스트를 복원했습니다.');
-            return;
-        }
-        
-        // 로컬 스토리지에도 없는 경우 기본 재생 목록 생성
-        playlists = [{
-            id: 'default',
-            name: '내 첫번째 재생 목록',
-            description: '좋아하는 노래를 추가해보세요!',
-            songs: []
-        }];
-        
-        console.log('기본 재생 목록을 생성했습니다.');
-    } finally {
-        // 로딩 표시 숨기기
-        document.getElementById('loading-indicator').classList.add('hidden');
+        savePlaylists();
     }
 }
 
@@ -832,12 +743,12 @@ function resetAddSongForm() {
 }
 
 // 초기화
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadPlaylists();
+document.addEventListener('DOMContentLoaded', () => {
+    loadPlaylists();
     renderPlaylists();
     setupEventListeners();
     
-    // YouTube API 로드
+    // YouTube API 스크립트 로드
     if (typeof YT === 'undefined') {
         const tag = document.createElement('script');
         tag.src = 'https://www.youtube.com/iframe_api';

@@ -1,73 +1,67 @@
-const express = require('express');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const cors = require('cors');
-const app = express();
+
 const PORT = process.env.PORT || 3000;
 
-// 데이터 파일 경로
-const DATA_FILE = path.join(__dirname, 'data', 'playlists.json');
-
-// 데이터 디렉토리 확인 및 생성
-const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir);
-}
-
-// 초기 데이터 파일 생성
-if (!fs.existsSync(DATA_FILE)) {
-  const initialData = {
-    playlists: [{
-      id: 'default',
-      name: '내 첫번째 재생 목록',
-      description: '좋아하는 노래를 추가해보세요!',
-      songs: []
-    }]
-  };
-  fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
-}
-
-// 미들웨어 설정
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// 모든 플레이리스트 가져오기
-app.get('/api/playlists', (req, res) => {
-  try {
-    const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    res.json(data.playlists);
-  } catch (error) {
-    console.error('플레이리스트 읽기 오류:', error);
-    res.status(500).json({ error: '플레이리스트를 불러오는 데 실패했습니다.' });
-  }
-});
-
-// 플레이리스트 저장
-app.post('/api/playlists', (req, res) => {
-  try {
-    const playlists = req.body;
-    
-    if (!Array.isArray(playlists)) {
-      return res.status(400).json({ error: '올바른 플레이리스트 형식이 아닙니다.' });
+const server = http.createServer((req, res) => {
+    let filePath = '.' + req.url;
+    if (filePath === './') {
+        filePath = './public/index.html';
+    } else if (!filePath.includes('.')) {
+        filePath = './public/index.html'; // SPA를 위한 리다이렉트
+    } else if (!filePath.includes('public/')) {
+        filePath = './public' + req.url;
     }
+
+    const extname = path.extname(filePath);
+    let contentType = 'text/html';
     
-    const data = { playlists };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-    
-    res.json({ success: true, message: '플레이리스트가 저장되었습니다.' });
-  } catch (error) {
-    console.error('플레이리스트 저장 오류:', error);
-    res.status(500).json({ error: '플레이리스트 저장에 실패했습니다.' });
-  }
+    switch (extname) {
+        case '.js':
+            contentType = 'text/javascript';
+            break;
+        case '.css':
+            contentType = 'text/css';
+            break;
+        case '.json':
+            contentType = 'application/json';
+            break;
+        case '.png':
+            contentType = 'image/png';
+            break;
+        case '.jpg':
+            contentType = 'image/jpg';
+            break;
+        case '.gif':
+            contentType = 'image/gif';
+            break;
+    }
+
+    fs.readFile(filePath, (error, content) => {
+        if (error) {
+            if(error.code === 'ENOENT') {
+                fs.readFile('./public/404.html', (error, content) => {
+                    if (error) {
+                        res.writeHead(404);
+                        res.end('404 - 페이지를 찾을 수 없습니다.');
+                    } else {
+                        res.writeHead(404, { 'Content-Type': 'text/html' });
+                        res.end(content, 'utf-8');
+                    }
+                });
+            } else {
+                res.writeHead(500);
+                res.end(`서버 오류: ${error.code}`);
+            }
+        } else {
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(content, 'utf-8');
+        }
+    });
 });
 
-// 프론트엔드 라우팅을 위한 설정
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// 서버 시작
-app.listen(PORT, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+server.listen(PORT, () => {
+    console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+    console.log(`http://localhost:${PORT}/`);
 }); 

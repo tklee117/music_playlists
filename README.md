@@ -1,6 +1,6 @@
 # 음악 재생 목록 플랫폼
 
-이 프로젝트는 YouTube 동영상에서 음악을 가져와 재생할 수 있는 음악 재생 목록 플랫폼입니다. 백엔드가 있어 여러 기기에서 동일한 재생 목록을 사용할 수 있습니다.
+이 프로젝트는 YouTube 동영상에서 음악을 가져와 재생할 수 있는 음악 재생 목록 플랫폼입니다. GitHub Pages로 호스팅되는 웹 애플리케이션입니다.
 
 ## 주요 기능
 
@@ -9,8 +9,7 @@
 - 노래 재생, 일시정지, 이전/다음 곡 이동
 - 재생 목록 셔플
 - 가사 보기 (현재는 기본 자리 표시자 표시)
-- 백엔드 서버를 통한 재생 목록 동기화 (여러 기기에서 동일한 재생 목록 사용 가능)
-- 오프라인 시 로컬 스토리지 백업
+- 로컬 스토리지를 사용한 재생 목록 저장 (브라우저 새로고침 후에도 데이터 유지)
 - 노래 커버 이미지 사용자 지정 (기본값은 YouTube 썸네일)
 
 ## 사용 방법
@@ -23,49 +22,29 @@
 6. "셔플" 버튼을 클릭하여 재생 목록의 노래 순서를 무작위로 섞습니다.
 7. 텍스트 아이콘 버튼을 클릭하여 가사를 볼 수 있습니다 (현재는 기본 텍스트 표시).
 
-## 로컬에서 실행하기
-
-이 프로젝트를 로컬에서 실행하려면:
-
-1. 저장소를 클론합니다: `git clone https://github.com/tklee117/music_playlists.git`
-2. 프로젝트 디렉토리로 이동합니다: `cd music_playlists`
-3. 필요한 패키지를 설치합니다: `npm install`
-4. 서버를 실행합니다: `npm start`
-5. 브라우저에서 `http://localhost:3000`으로 접속합니다.
-
-## Railway에 배포하기
-
-이 프로젝트를 Railway에 배포하려면:
-
-1. [Railway](https://railway.app/) 계정을 생성합니다.
-2. Railway CLI를 설치합니다: `npm i -g @railway/cli`
-3. 로그인합니다: `railway login`
-4. 프로젝트를 초기화합니다: `railway init`
-5. 프로젝트를 배포합니다: `railway up`
-
-또는 GitHub 저장소를 Railway에 직접 연결하여 배포할 수도 있습니다:
-
-1. Railway 대시보드에서 "New Project" > "Deploy from GitHub repo"를 선택합니다.
-2. 저장소를 선택하고 "Deploy Now"를 클릭합니다.
-
 ## 기술 스택
 
-- 프론트엔드:
-  - HTML5
-  - CSS3
-  - JavaScript (ES6+)
-  - YouTube IFrame API
-- 백엔드:
-  - Node.js
-  - Express.js
-  - JSON 파일 기반 데이터 저장소
+- HTML5
+- CSS3
+- JavaScript (ES6+)
+- YouTube IFrame API
+- 로컬 스토리지 API
+
+## GitHub Pages 배포 방법
+
+이 프로젝트를 GitHub Pages에 배포하려면:
+
+1. GitHub 저장소를 생성합니다.
+2. 모든 프로젝트 파일을 저장소에 푸시합니다.
+3. 저장소 설정으로 이동하여 GitHub Pages 섹션에서 배포 소스를 선택합니다 (예: main 브랜치).
+4. "Save" 버튼을 클릭합니다.
+5. GitHub Pages 링크가 생성될 때까지 기다립니다.
 
 ## 참고사항
 
 - YouTube Data API 할당량 제한으로 인해 oEmbed API를 사용하여 비디오 정보를 가져옵니다.
 - 가사 기능은 현재 임시 구현되어 있으며, 실제 가사를 가져오려면 Musixmatch, Genius 등의 API 통합이 필요합니다.
 - 기본 앨범 아트 이미지를 업로드해야 합니다 (`img/default-cover.jpg`).
-- 데이터는 서버의 JSON 파일에 저장되므로 Railway의 임시 파일 시스템을 사용하는 경우 서버 재시작 시 데이터가 초기화될 수 있습니다. 영구 저장을 위해서는 추가 설정이 필요합니다.
 
 ## 라이선스
 
