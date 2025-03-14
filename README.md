@@ -52,4 +52,43 @@
 
 ## 저작권 고지
 
-이 애플리케이션은 YouTube 콘텐츠를 임베드하므로, YouTube 서비스 약관을 준수해야 합니다. 저작권이 있는 콘텐츠를 사용할 때는 해당 저작권자의 권리를 존중해주세요. 
+이 애플리케이션은 YouTube 콘텐츠를 임베드하므로, YouTube 서비스 약관을 준수해야 합니다. 저작권이 있는 콘텐츠를 사용할 때는 해당 저작권자의 권리를 존중해주세요.
+
+## Supabase 설정 방법
+
+이 앱은 Supabase를 사용하여 여러 기기에서 동일한 재생 목록을 사용할 수 있습니다. Supabase는 PostgreSQL 기반의 오픈소스 백엔드로, Firebase와 유사한 기능을 제공합니다. 개인 Supabase 프로젝트를 설정하려면 다음 단계를 따르세요:
+
+1. [Supabase 웹사이트](https://supabase.io/)에 접속하여 계정을 생성합니다.
+2. "New Project"를 클릭하고 프로젝트 이름(예: "music-playlists")을 입력합니다.
+3. 데이터베이스 비밀번호를 설정하고, 지역을 선택한 후 "Create new project"를 클릭합니다.
+4. 프로젝트가 생성되면 Supabase 대시보드에서 "Settings" > "API"로 이동합니다.
+5. "URL"과 "anon public" 키를 복사합니다.
+6. `public/js/supabase-config.js` 파일을 열고 다음 값을 수정합니다:
+   ```javascript
+   const supabaseUrl = 'YOUR_SUPABASE_URL'; // 복사한 URL을 여기에 붙여넣기
+   const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // 복사한 anon 키를 여기에 붙여넣기
+   ```
+
+### 데이터베이스 테이블 생성
+
+1. Supabase 대시보드에서 "Table Editor"로 이동합니다.
+2. "New Table"을 클릭하고 다음 설정으로 테이블을 생성합니다:
+   - 테이블 이름: `playlists`
+   - 열 구성:
+     - `id` (type: text, primary key)
+     - `name` (type: text)
+     - `songs` (type: json)
+     - `user_id` (type: text)
+     - `updated_at` (type: timestamp with time zone)
+3. "Save"를 클릭하여 테이블을 생성합니다.
+
+### 데이터베이스 권한 설정
+
+1. Supabase 대시보드에서 "Authentication" > "Policies"로 이동합니다.
+2. "playlists" 테이블을 선택하고 "New Policy"를 클릭합니다.
+3. "Create a policy from scratch"를 선택합니다.
+4. 다음 설정으로 정책을 생성합니다:
+   - Policy name: `Public access`
+   - Using expression: `true`
+   - Definition: `true`
+5. "Save"를 클릭합니다. 
