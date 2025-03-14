@@ -562,77 +562,64 @@ function closeDeletePlaylistModal() {
     deletePlaylistModal.classList.remove('active');
 }
 
-// 로컬 스토리지에 재생 목록 저장
-async function savePlaylists() {
-    showLoadingIndicator();
+// 애플리케이션 초기화
+async function initialize() {
     try {
-        console.log('재생 목록 저장 시작:', playlists);
+        // Firebase 초기화
+        await initializeFirebase();
         
-        // Supabase에 재생 목록 저장
-        const result = await savePlaylistsToSupabase(playlists);
-        if (!result) {
-            console.warn('Supabase 저장 실패, 로컬 스토리지에만 저장됩니다.');
-            // 로컬 스토리지에 백업
-            localStorage.setItem('playlists', JSON.stringify(playlists));
-        } else {
-            console.log('Supabase 저장 성공 및 로컬 스토리지 백업 완료');
-        }
-    } catch (error) {
-        console.error('재생 목록 저장 중 오류 발생:', error);
-        // 로컬 스토리지에 백업
-        localStorage.setItem('playlists', JSON.stringify(playlists));
-    } finally {
-        hideLoadingIndicator();
-    }
-}
-
-// 로컬 스토리지에서 재생 목록 로드
-async function loadPlaylists() {
-    showLoadingIndicator();
-    try {
-        console.log('재생 목록 로드 시작');
+        // 재생 목록 로드
+        const loadedPlaylists = await loadPlaylists();
         
-        // Supabase에서 재생 목록 가져오기
-        const loadedPlaylists = await fetchPlaylistsFromSupabase();
         if (loadedPlaylists && loadedPlaylists.length > 0) {
-            console.log('Supabase에서 재생 목록 로드 성공:', loadedPlaylists);
             playlists = loadedPlaylists;
-            return;
-        }
-        
-        // Supabase에서 가져오기 실패 시 로컬 스토리지에서 복원
-        console.log('Supabase에서 재생 목록 로드 실패, 로컬 스토리지에서 복원 시도');
-        const storedPlaylists = localStorage.getItem('playlists');
-        if (storedPlaylists) {
-            playlists = JSON.parse(storedPlaylists);
-            console.log('로컬 스토리지에서 재생 목록 복원 성공:', playlists);
         } else {
             // 기본 재생 목록 생성
-            console.log('로컬 스토리지에 재생 목록이 없어 기본 재생 목록 생성');
             playlists = [
                 {
-                    id: 'default',
-                    name: '기본 재생 목록',
+                    name: "기본 재생 목록",
                     songs: []
                 }
             ];
-            
-            // Supabase에 저장 시도
-            await savePlaylistsToSupabase(playlists);
+            // 새로 생성한 기본 재생 목록 저장
+            savePlaylists();
         }
+        
+        // UI 렌더링
+        renderPlaylists();
+        setupEventListeners();
     } catch (error) {
-        console.error('재생 목록 로드 중 오류 발생:', error);
-        // 기본 재생 목록 생성
-        playlists = [
-            {
-                id: 'default',
-                name: '기본 재생 목록',
-                songs: []
-            }
-        ];
-    } finally {
-        hideLoadingIndicator();
+        console.error("초기화 중 오류 발생:", error);
+        alert("애플리케이션을 초기화하는 중 오류가 발생했습니다. 다시 시도해 주세요.");
     }
+}
+
+// 재생 목록 저장
+async function savePlaylists() {
+    // Firebase의 savePlaylists 함수 호출
+    const success = await window.savePlaylists(playlists);
+    
+    if (!success) {
+        console.warn("Firebase에 저장하지 못했습니다. 로컬 스토리지에만 저장됩니다.");
+    }
+}
+
+// 재생 목록 로드
+async function loadPlaylists() {
+    // Firebase의 loadPlaylists 함수 호출
+    const loadedPlaylists = await window.loadPlaylists();
+    
+    if (loadedPlaylists) {
+        return loadedPlaylists;
+    } else {
+        // 로컬 스토리지에서 로드
+        const savedPlaylists = localStorage.getItem('playlists');
+        if (savedPlaylists) {
+            return JSON.parse(savedPlaylists);
+        }
+    }
+    
+    return null;
 }
 
 // 가사 가져오기 및 표시
@@ -793,40 +780,13 @@ function resetAddSongForm() {
     songLyricsInput.value = '';
 }
 
-async function initialize() {
-    try {
-        showLoadingIndicator();
-        console.log('애플리케이션 초기화 시작');
-        
-        // Supabase 초기화
-        const initResult = await initializeSupabase();
-        console.log('Supabase 초기화 결과:', initResult);
-        
-        // 재생 목록 로드
-        const loadedPlaylists = await fetchPlaylistsFromSupabase();
-        console.log('초기화 시 로드된 재생 목록:', loadedPlaylists);
-        playlists = loadedPlaylists;
-        
-        renderPlaylists();
-        hideLoadingIndicator();
-        
-        // YouTube API 스크립트가 아직 로드되지 않은 경우 로드
-        if (typeof YT === 'undefined') {
-            const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            const firstScriptTag = document.getElementsByTagName('script')[0];
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-        }
-        
-        console.log('애플리케이션 초기화 완료');
-    } catch (error) {
-        console.error('초기화 중 오류 발생:', error);
-        alert('애플리케이션 초기화 중 오류가 발생했습니다. 페이지를 새로고침해 주세요.');
-    }
-}
+// 페이지 로드 시 애플리케이션 초기화
+document.addEventListener('DOMContentLoaded', initialize);
 
-// 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    initialize();
-    setupEventListeners();
-}); 
+// YouTube IFrame API 로드
+if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+} 
