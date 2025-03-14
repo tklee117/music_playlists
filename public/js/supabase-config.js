@@ -1,6 +1,6 @@
 // Supabase 클라이언트 초기화
-const supabaseUrl = 'YOUR_SUPABASE_URL'; // Supabase 프로젝트 URL로 교체하세요
-const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // Supabase anon 키로 교체하세요
+const supabaseUrl = 'https://ksxjolldqertcfufwgit.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzeGpvbGxkcWVydGNmdWZ3Z2l0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE5MTA5NjAsImV4cCI6MjA1NzQ4Njk2MH0.r7wARyMGu3VD7Zz9iYfqEfBQbbGtQDkJwospfaaYiCc';
 const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 // 로컬 스토리지에 사용자 ID 저장 (인증 없는 사용자 구분용)
@@ -49,7 +49,7 @@ function getUserId() {
 }
 
 // 재생 목록 가져오기
-async function fetchPlaylists() {
+async function fetchPlaylistsFromSupabase() {
     showLoadingIndicator();
     try {
         const { data, error } = await supabase
@@ -78,7 +78,7 @@ async function fetchPlaylists() {
             ];
             
             // 기본 재생 목록 저장 시도
-            await savePlaylists(defaultPlaylists);
+            await savePlaylistsToSupabase(defaultPlaylists);
             return defaultPlaylists;
         }
     } catch (error) {
@@ -89,7 +89,7 @@ async function fetchPlaylists() {
 }
 
 // 재생 목록 저장하기
-async function savePlaylists(playlists) {
+async function savePlaylistsToSupabase(playlists) {
     showLoadingIndicator();
     try {
         // 기존 재생 목록 삭제

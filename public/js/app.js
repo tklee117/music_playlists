@@ -567,7 +567,7 @@ async function savePlaylists() {
     showLoadingIndicator();
     try {
         // Supabase에 재생 목록 저장
-        const result = await savePlaylists(playlists);
+        const result = await savePlaylistsToSupabase(playlists);
         if (!result) {
             console.warn('Supabase 저장 실패, 로컬 스토리지에만 저장됩니다.');
             // 로컬 스토리지에 백업
@@ -587,7 +587,7 @@ async function loadPlaylists() {
     showLoadingIndicator();
     try {
         // Supabase에서 재생 목록 가져오기
-        const loadedPlaylists = await fetchPlaylists();
+        const loadedPlaylists = await fetchPlaylistsFromSupabase();
         if (loadedPlaylists && loadedPlaylists.length > 0) {
             playlists = loadedPlaylists;
             return;
@@ -608,7 +608,7 @@ async function loadPlaylists() {
             ];
             
             // Supabase에 저장 시도
-            await savePlaylists(playlists);
+            await savePlaylistsToSupabase(playlists);
         }
     } catch (error) {
         console.error('재생 목록 로드 중 오류 발생:', error);
@@ -790,7 +790,7 @@ async function initialize() {
         await initializeSupabase();
         
         // 재생 목록 로드
-        const loadedPlaylists = await fetchPlaylists();
+        const loadedPlaylists = await fetchPlaylistsFromSupabase();
         playlists = loadedPlaylists;
         
         renderPlaylists();
